@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "balancer"
+version = "0.1.0"
+description = "Load balancer for HTTP and HTTPS traffic"
+readme = "README.md"
+requires-python = ">=3.12"
+
+[tool.setuptools.packages.find]
+exclude = [
+    "tests",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-mypy"
+]
