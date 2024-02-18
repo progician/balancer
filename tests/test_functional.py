@@ -1,9 +1,10 @@
 from balancer import Balancer
+from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.request import urlopen
 from threading import Thread
 
-from typing import Generator
+from typing import Generator, cast
 
 import pytest
 
@@ -12,20 +13,31 @@ class StubResponse(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-type", " text/plain")
         self.end_headers()
-        self.wfile.write(f"server {self.server.test_index}".encode("utf-8"))
+
+        server = cast(StubServer, self.server)
+        server_index = server.index
+        self.wfile.write(f"server {server_index}".encode("utf-8"))
+
+
+class StubServer(HTTPServer):
+    def __init__(self, index: int, port: int) -> None:
+        self.index = index
+        self.port = port
+        super().__init__(
+            server_address=("localhost", port),
+            RequestHandlerClass=StubResponse
+        )
 
 
 class ServerFixture:
     def __init__(self, instances: int, starting_port = 8081) -> None:
         self.servers = [
-            HTTPServer(
-                server_address=("localhost", starting_port + i),
-                RequestHandlerClass=StubResponse,
+            StubServer(
+                index=i,
+                port=starting_port + i,
             )
             for i in range(instances)
         ]
-        for i, server in enumerate(self.servers):
-            server.test_index = i
 
         self.threads = [
             Thread(target=server.serve_forever)
@@ -53,7 +65,7 @@ def balancer(server_instances: ServerFixture) -> Generator[Balancer, None, None]
     balancer = Balancer(
         port=8080,
         proxy_addresses=[
-            f"http://localhost:{8081 + s.test_index}"
+            f"http://localhost:{s.port}"
             for s in server_instances.servers
         ]
     )
