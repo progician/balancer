@@ -1,9 +1,14 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from typing import cast
 from urllib.request import Request, urlopen
 
 class BalancerRequestHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        address = self.server.take_next()
+    @property
+    def balancer(self):
+        return cast(Balancer, self.server)
+
+    def _proxy_request(self) -> None:
+        address = self.balancer.take_next()
         content_length = int(self.headers.get('content-length', '0'))
         data = None
         if content_length > 0:
@@ -12,7 +17,7 @@ class BalancerRequestHandler(BaseHTTPRequestHandler):
         req = Request(
             url=address,
             data=data,
-            headers=self.headers,
+            headers={ k: v for k, v in self.headers.raw_items()},
         )
         resp = urlopen(req)
         self.send_response(resp.code)
@@ -22,6 +27,9 @@ class BalancerRequestHandler(BaseHTTPRequestHandler):
 
         self.wfile.write(resp.read())
         self.wfile.flush()
+
+    def do_GET(self) -> None:
+        self._proxy_request()
 
 
 class Balancer(HTTPServer):
