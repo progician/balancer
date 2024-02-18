@@ -18,17 +18,22 @@ class BalancerRequestHandler(BaseHTTPRequestHandler):
             url=address,
             data=data,
             headers={ k: v for k, v in self.headers.raw_items()},
+            method=self.command,
         )
         resp = urlopen(req)
         self.send_response(resp.code)
-        for key, value in req.headers.items():
+        for key, value in resp.headers.items():
             self.send_header(key, value)
         self.end_headers()
 
-        self.wfile.write(resp.read())
+        body = resp.read()
+        self.wfile.write(body)
         self.wfile.flush()
 
     def do_GET(self) -> None:
+        self._proxy_request()
+
+    def do_POST(self) -> None:
         self._proxy_request()
 
 
